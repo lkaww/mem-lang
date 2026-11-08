@@ -1,0 +1,1 @@
+printf("test:", %f, mem_read(1u));

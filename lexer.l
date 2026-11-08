@@ -1,6 +1,8 @@
 %{
     #include "y.tab.h"
     #include <stdlib.h>
+
+    int yyerror(const char* message);
 %}
 
 %%
@@ -10,13 +12,13 @@
     return NUMBER_FLOAT;
 }
 
-[0-9]+"u" {
+[0-F]+"u" {
     yylval.address = strtoul(yytext, NULL, 16);
     return ADDRESS;
 }
 
 [0-9]+ {
-    yylval.floating = atof(yytext);
+    yylval.floating = atoi(yytext);
     return NUMBER_FLOAT;
 }
 
@@ -36,6 +38,18 @@
     return MEM_FIND_SEQUENCES;
 }
 
+"printf" {
+    return PRINTF;
+}
+
+"%f" {
+    return F;
+}
+
+"%u" {
+    return U;
+}
+
 "(" {
     return PAREN_LEFT;
 }
@@ -52,9 +66,18 @@
     return SEMICOLON;
 }
 
+\"[^\"\n]*\" {
+    yylval.string = strdup(yytext);
+    return STRING;
+}
+
 "//"[^\n]* {}
 
 [ \t\n]+ {}
+
+.   {
+    yyerror(yytext);
+}
 
 %%
 
