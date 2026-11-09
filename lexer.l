@@ -12,14 +12,9 @@
     return NUMBER_FLOAT;
 }
 
-[0-F]+"u" {
-    yylval.address = strtoul(yytext, NULL, 16);
-    return ADDRESS;
-}
-
 [0-9]+ {
-    yylval.floating = atoi(yytext);
-    return NUMBER_FLOAT;
+    yylval.integer = atoi(yytext);
+    return NUMBER_INT;
 }
 
 "mem_write" {
@@ -34,10 +29,6 @@
     return MEM_FREE;
 }
 
-"mem_fs" {
-    return MEM_FIND_SEQUENCES;
-}
-
 "printf" {
     return PRINTF;
 }
@@ -46,8 +37,12 @@
     return F;
 }
 
-"%u" {
-    return U;
+"%i" {
+    return I;
+}
+
+"%s" {
+    return S;
 }
 
 "(" {

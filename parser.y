@@ -2,34 +2,36 @@
     #include <stdio.h>
     #include <string.h>
 
-    void mem_write(unsigned int address, float value);
-    float mem_read(unsigned int address);
-    void mem_free(unsigned int address);
-    unsigned int mem_find_sequences(float value);
-
-
     int yyerror(const char* message);
     int yylex(void);
+
+    int* int_vars[25];
+    float* float_vars[25];
+
+    void int_set(int index, int value);
+    int int_get(int index);
+    void int_free(int index);
 
     extern FILE* yyin;
 %}
 
 %union {
+    int integer;
     float floating;
-    unsigned int address;
     char* string;
 }
 
+%token <integer> NUMBER_INT
 %token <floating> NUMBER_FLOAT
-%token <address> ADDRESS
 %token <string> STRING
-%token MEM_WRITE MEM_READ MEM_FREE MEM_FIND_SEQUENCES
-%token PRINTF F U
+
+%token MEM_WRITE MEM_READ MEM_FREE
+%token PRINTF I F S
 %token PAREN_LEFT PAREN_RIGHT
 %token AND SEMICOLON
 
+%type <integer> exp_int
 %type <floating> exp_float
-%type <address> exp_address
 %type <string> exp_string
 
 %%
@@ -41,52 +43,48 @@ input:
 
 line:
     exp_float SEMICOLON {
-        printf("%f\n", $1);
+        printf("%g\n", $1);
     }
 
-|   exp_address SEMICOLON {
-        printf("%u\n", $1);
+|   exp_int SEMICOLON {
+        printf("%d\n", $1);
     }
 
 |   exp_string SEMICOLON {
         printf("%s\n", $1);
     }
 ;
+exp_int:
+    NUMBER_INT {
+        $$ = $1;
+    }
+
+|   PRINTF PAREN_LEFT I AND exp_int PAREN_RIGHT {
+        printf("%d\n",$5 );
+    }
+
+|   MEM_WRITE PAREN_LEFT exp_int AND exp_int PAREN_RIGHT {
+        int_set($3, $5);
+    }
+
+|   MEM_READ PAREN_LEFT exp_int PAREN_RIGHT {
+        $$ = int_get($3);
+    }
+
+|   MEM_FREE PAREN_LEFT exp_int PAREN_RIGHT {
+        int_free($3);
+    }
+;
+
 
 exp_float:
     NUMBER_FLOAT {
         $$ = $1;
     }
 
-|   MEM_WRITE PAREN_LEFT exp_address AND exp_float PAREN_RIGHT {
-        mem_write($3, $5);
-    }
-
-|   MEM_READ PAREN_LEFT exp_address PAREN_RIGHT {
-        $$ = mem_read($3);
-    }
-
 |   PRINTF PAREN_LEFT F AND exp_float PAREN_RIGHT {
-        printf("%f",$5 );
+        printf("%g\n",$5 );
     }    
-;
-
-exp_address:
-    ADDRESS {
-        $$ = $1;
-    }
-
-|   MEM_FIND_SEQUENCES PAREN_LEFT exp_float PAREN_RIGHT {
-        $$ = mem_find_sequences($3);
-    }
-
-|   MEM_FREE PAREN_LEFT exp_address PAREN_RIGHT {
-        mem_free($3);
-    }
-
-|   PRINTF PAREN_LEFT U AND exp_address PAREN_RIGHT {
-        printf("%u", $5);
-    }
 ;
 
 exp_string:
@@ -95,42 +93,43 @@ exp_string:
     }
 
 |   PRINTF PAREN_LEFT exp_string PAREN_RIGHT {
-        printf("%s", $3);
+        printf("%s\n", $3);
     }
 
 |   PRINTF PAREN_LEFT exp_string AND F AND exp_float PAREN_RIGHT {
-        printf("%s %f", $3, $7);
-    }
-
-|   PRINTF PAREN_LEFT exp_string AND U AND exp_address PAREN_RIGHT {
-        printf("%s %u", $3, $7);
+        printf("%s %g\n", $3, $7);
     }
 
 |   PRINTF PAREN_LEFT F AND exp_float AND exp_string PAREN_RIGHT {
-        printf("%f %s", $5, $7);
+        printf("%g %s\n", $5, $7);
     }
 
-|   PRINTF PAREN_LEFT U AND exp_address AND exp_string PAREN_RIGHT {
-        printf("%u %s", $5, $7);
+|   PRINTF PAREN_LEFT exp_string AND I AND exp_int PAREN_RIGHT {
+        printf("%s %d\n", $3, $7);
+    }
+
+|   PRINTF PAREN_LEFT I AND exp_int AND exp_string PAREN_RIGHT {
+        printf("%d %s\n", $5, $7);
     }
 %%
 
-void mem_write(unsigned int address, float value) {
-    printf("writed %f on %u", value, address);
+void int_set(int index, int value) {
+    if (int_vars[index] != NULL) {
+        *int_vars[index] = value;
+        return;
+    }
+
+    int_vars[index] = (int*) malloc(sizeof(int));
+    *int_vars[index] = value;
 }
 
-float mem_read(unsigned int address) {
-    //printf("value on %u", address);
-    return 1.00f;
+int int_get(int index) {
+    return *int_vars[index];
 }
 
-void mem_free(unsigned int address) {
-    printf("mem free at %u", address);
-}
-
-unsigned int mem_find_sequences(float value) {
-    printf("finded sequence of bytes on address ");
-    return 1;
+void int_free(int index) {
+    free(int_vars[index]);
+    int_vars[index] = NULL;
 }
 
 int yyerror(const char* message) {
@@ -143,7 +142,8 @@ int main(int argc, char* argv[]) {
 
     if (yyin == NULL)
     {
-        printf("error: no such file or directory\n");
+        //printf("error: no such file or directory\n");
+        yyerror("no such file or directory");
         return 1;
     }
 
