@@ -1,5 +1,5 @@
 # mem-lang
-A small set of commands that allow you to work with memory. Created with Flex and GNU Bison as study project.
+A small scripting language. Created with Flex and GNU Bison as study project.
 
 ## How to build
 You need to download Flex, GNU Bison and GCC. Then run the following commands:
