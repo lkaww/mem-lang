@@ -17,6 +17,22 @@
     return NUMBER_INT;
 }
 
+"+" {
+    return PLUS;
+}
+
+"-" {
+    return MINUS;
+}
+
+"*" {
+    return MULTIPLY;
+}
+
+"/" {
+    return DIVIDE;
+}
+
 "mem_write" {
     return MEM_WRITE;
 }
@@ -29,20 +45,20 @@
     return MEM_FREE;
 }
 
+"int" {
+    return TYPE_INT;
+}
+
+"float" {
+    return TYPE_FLOAT;
+}
+
 "printf" {
     return PRINTF;
 }
 
-"%f" {
-    return F;
-}
-
-"%i" {
-    return I;
-}
-
-"%s" {
-    return S;
+"printfln" {
+    return PRINTFLN;
 }
 
 "(" {
@@ -62,6 +78,9 @@
 }
 
 \"[^\"\n]*\" {
+    yytext[yyleng - 1] = '\0';
+    yytext++;
+
     yylval.string = strdup(yytext);
     return STRING;
 }

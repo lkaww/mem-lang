@@ -12,6 +12,12 @@
     int int_get(int index);
     void int_free(int index);
 
+    void float_set(int index, float value);
+    float float_get(int index);
+    void float_free(int index);
+
+    bool string_check(const char* string);
+
     extern FILE* yyin;
 %}
 
@@ -26,7 +32,9 @@
 %token <string> STRING
 
 %token MEM_WRITE MEM_READ MEM_FREE
-%token PRINTF I F S
+%token TYPE_INT TYPE_FLOAT
+%token PLUS MINUS DIVIDE MULTIPLY MODULO
+%token PRINTF PRINTFLN
 %token PAREN_LEFT PAREN_RIGHT
 %token AND SEMICOLON
 
@@ -34,45 +42,114 @@
 %type <floating> exp_float
 %type <string> exp_string
 
+%left PLUS MINUS
+%left DIVIDE MULTIPLY MODULO
+
 %%
 
 input:
     %empty
-|   input line;
+|   input line
 ;
 
 line:
-    exp_float SEMICOLON {
-        printf("%g\n", $1);
+    printf SEMICOLON
+|   printfln SEMICOLON
+
+|   mem_write SEMICOLON
+|   mem_free SEMICOLON
+
+|   exp_int SEMICOLON
+|   exp_float SEMICOLON
+;
+
+printf:
+    PRINTF PAREN_LEFT exp_string PAREN_RIGHT {
+        if (string_check($3))
+            printf($3);
     }
 
-|   exp_int SEMICOLON {
-        printf("%d\n", $1);
+|   PRINTF PAREN_LEFT exp_string AND exp_int PAREN_RIGHT {
+        if (string_check($3))
+            printf($3, $5);
     }
 
-|   exp_string SEMICOLON {
-        printf("%s\n", $1);
+|   PRINTF PAREN_LEFT exp_string AND exp_float PAREN_RIGHT {
+        if (string_check($3))
+            printf($3, $5);
     }
 ;
+
+printfln:
+    PRINTFLN PAREN_LEFT exp_string PAREN_RIGHT {
+        if (string_check($3)) {
+            printf($3);
+            printf("\n");
+        }
+    }
+
+|   PRINTFLN PAREN_LEFT exp_string AND exp_int PAREN_RIGHT {
+        if (string_check($3)) {
+            printf($3, $5);
+            printf("\n");
+        }
+    }
+
+|   PRINTFLN PAREN_LEFT exp_string AND exp_float PAREN_RIGHT {
+        if (string_check($3)) {
+            printf($3, $5);
+            printf("\n");
+        }
+    }
+;
+
+mem_write:
+    MEM_WRITE PAREN_LEFT exp_int AND exp_int AND TYPE_INT PAREN_RIGHT {
+        int_set($3, $5);
+    }
+
+|   MEM_WRITE PAREN_LEFT exp_int AND exp_float AND TYPE_FLOAT PAREN_RIGHT {
+        float_set($3, $5);
+    }
+;
+
+mem_free:
+    MEM_FREE PAREN_LEFT exp_int AND TYPE_INT PAREN_RIGHT {
+        int_free($3);
+    }
+
+|   MEM_FREE PAREN_LEFT exp_int AND TYPE_FLOAT PAREN_RIGHT {
+        float_free($3);
+    }
+;
+    
 exp_int:
     NUMBER_INT {
         $$ = $1;
     }
 
-|   PRINTF PAREN_LEFT I AND exp_int PAREN_RIGHT {
-        printf("%d\n",$5 );
+|   exp_int PLUS exp_int {
+        $$ = $1 + $3;
     }
 
-|   MEM_WRITE PAREN_LEFT exp_int AND exp_int PAREN_RIGHT {
-        int_set($3, $5);
+|   exp_int MINUS exp_int {
+        $$ = $1 - $3;
     }
 
-|   MEM_READ PAREN_LEFT exp_int PAREN_RIGHT {
+|   exp_int MULTIPLY exp_int {
+        $$ = $1 * $3;
+    }
+
+|   exp_int DIVIDE exp_int {
+        $$ = $1 / $3;
+    }
+
+|   exp_int MODULO exp_int {
+        $$ = $1 % $3;
+    }
+
+|   MEM_READ PAREN_LEFT exp_int AND TYPE_INT PAREN_RIGHT {
         $$ = int_get($3);
-    }
-
-|   MEM_FREE PAREN_LEFT exp_int PAREN_RIGHT {
-        int_free($3);
     }
 ;
 
@@ -82,34 +159,30 @@ exp_float:
         $$ = $1;
     }
 
-|   PRINTF PAREN_LEFT F AND exp_float PAREN_RIGHT {
-        printf("%g\n",$5 );
-    }    
+|   exp_float PLUS exp_float {
+        $$ = $1 + $3;
+    }
+
+|   exp_float MINUS exp_float {
+        $$ = $1 - $3;
+    }
+
+|   exp_float MULTIPLY exp_float {
+        $$ = $1 * $3;
+    }
+
+|   exp_float DIVIDE exp_float {
+        $$ = $1 / $3;
+    }
+
+|   MEM_READ PAREN_LEFT exp_int AND TYPE_FLOAT PAREN_RIGHT {
+        $$ = float_get($3);
+    }
 ;
 
 exp_string:
     STRING {
         $$ = $1;
-    }
-
-|   PRINTF PAREN_LEFT exp_string PAREN_RIGHT {
-        printf("%s\n", $3);
-    }
-
-|   PRINTF PAREN_LEFT exp_string AND F AND exp_float PAREN_RIGHT {
-        printf("%s %g\n", $3, $7);
-    }
-
-|   PRINTF PAREN_LEFT F AND exp_float AND exp_string PAREN_RIGHT {
-        printf("%g %s\n", $5, $7);
-    }
-
-|   PRINTF PAREN_LEFT exp_string AND I AND exp_int PAREN_RIGHT {
-        printf("%s %d\n", $3, $7);
-    }
-
-|   PRINTF PAREN_LEFT I AND exp_int AND exp_string PAREN_RIGHT {
-        printf("%d %s\n", $5, $7);
     }
 %%
 
@@ -132,8 +205,40 @@ void int_free(int index) {
     int_vars[index] = NULL;
 }
 
+void float_set(int index, float value) {
+    if (float_vars[index] != NULL) {
+        *float_vars[index] = value;
+        return;
+    }
+
+    float_vars[index] = (float*) malloc(sizeof(float));
+    *float_vars[index] = value;
+}
+
+float float_get(int index) {
+    return *float_vars[index];
+}
+
+void float_free(int index) {
+    free(float_vars[index]);
+    float_vars[index] = NULL;
+}
+
+bool string_check(const char* string) {
+    for (size_t i = 0; i < strlen(string); i++) {
+        if (string[i] == '%') {
+            if (string[i+1] != 'f' && string[i+1] != 'g' && string[i+1] != 'i' && string[i+1] != 'd' && string[i+1] != '%' && string[i+1] != 'F') {
+                yyerror("no modificator found after %");
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 int yyerror(const char* message) {
-    fprintf(stderr, "error: %s\n", message);
+    fprintf(stderr, "ERROR: %s\n", message);
     return 0;
 }
 
@@ -147,7 +252,8 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    return yyparse();
-
+    int parse = yyparse();
     fclose(yyin);
+
+    return parse;
 }

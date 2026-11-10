@@ -1,2 +1,0 @@
-mem_write(1, 123123);
-printf("test, addr 1 = ", %i, mem_read(1));
