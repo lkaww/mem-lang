@@ -53,12 +53,20 @@
     return TYPE_FLOAT;
 }
 
+"string" {
+    return TYPE_STRING;
+}
+
 "printf" {
     return PRINTF;
 }
 
 "printfln" {
     return PRINTFLN;
+}
+
+"scanf" {
+    return SCANF;
 }
 
 "(" {
