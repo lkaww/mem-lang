@@ -1,18 +1,56 @@
 %{
     #include <stdio.h>
     #include <string.h>
+    #include <stdlib.h>
+    #include <stdbool.h>
 
     int yyerror(const char* message);
     int yylex(void);
 
+
+    //AST (nodes)
+    typedef struct {
+        char* value;
+    } node_string;
+
+    typedef struct {
+        int value;
+    } node_int;
+
+    typedef struct {
+        float value;
+    } node_float;
+
+
+    typedef struct {
+        node_string* string;
+        node_int* integer;
+        node_float* floating;
+        node_string* string_second;
+        bool ln;
+    } node_printf;
+
+
+    typedef struct {
+        node_printf printf;
+    } node_std;
+
+    node_string* node_add_string(char* value);
+    node_int* node_add_int(int value);
+    node_float* node_add_float(float value);
+
+    void node_add_printf(node_string* string, node_int* integer, node_float* floating, node_string* string_second, bool ln);
+
+    void node_to_func();
+
+    node_std* nodes = NULL;
+    int nodes_cur = 0;
+
+    
+    //Variables
     int* int_vars[25] = {NULL};
     float* float_vars[25] = {NULL};
     char* string_vars[25] = {NULL};
-
-    /*char* always_statements[25] = {NULL};
-    bool always_write = false;
-    int curstatement = 0;
-    void statement_add(char* value);*/
 
     void int_set(int index, int value);
     int int_get(int index);
@@ -28,6 +66,8 @@
 
     void all_free();
 
+
+    //Checking (small protection)
     bool check_string(const char* string);
     bool check_index(int index);
 
@@ -45,28 +85,29 @@
 %token <string> STRING
 
 %token MEM_WRITE MEM_READ MEM_FREE
-%token TYPE_INT TYPE_FLOAT TYPE_STRING
-%token PLUS MINUS DIVIDE MULTIPLY MODULO
 %token PRINTF PRINTFLN
 %token SCANF
-%token PAREN_LEFT PAREN_RIGHT
-%token AND SEMICOLON
+
+%token TYPE_INT TYPE_FLOAT TYPE_STRING
+
+%token PLUS MINUS DIVIDE MULTIPLY MODULO
+%left PLUS MINUS
+%left DIVIDE MULTIPLY MODULO
+
+%token PAREN_LEFT PAREN_RIGHT AND SEMICOLON
 
 %type <integer> exp_int
 %type <floating> exp_float
 %type <string> exp_string
 
-%left PLUS MINUS
-%left DIVIDE MULTIPLY MODULO
-
 %%
 
 input:
     %empty
-|   input line
+|   input ln
 ;
 
-line:
+ln:
     statements
 ;
 
@@ -83,52 +124,44 @@ statements:
 printf:
     PRINTF PAREN_LEFT exp_string PAREN_RIGHT {
         if (check_string($3))
-            printf($3);
+            node_add_printf(node_add_string($3), NULL, NULL, NULL, false);
     }
 
 |   PRINTF PAREN_LEFT exp_string AND exp_int PAREN_RIGHT {
         if (check_string($3))
-            printf($3, $5);
+            node_add_printf(node_add_string($3), node_add_int($5), NULL, NULL, false);
     }
 
 |   PRINTF PAREN_LEFT exp_string AND exp_float PAREN_RIGHT {
         if (check_string($3))
-            printf($3, $5);
+            node_add_printf(node_add_string($3), NULL, node_add_float($5), NULL, false);
     }
 
 |   PRINTF PAREN_LEFT exp_string AND exp_string PAREN_RIGHT {
         if (check_string($3))
-            printf($3, $5);
+            node_add_printf(node_add_string($3), NULL, NULL, node_add_string($5), false);
     }
 ;
 
 printfln:
     PRINTFLN PAREN_LEFT exp_string PAREN_RIGHT {
-        if (check_string($3)) {
-            printf($3);
-            printf("\n");
-        }
+        if (check_string($3))
+            node_add_printf(node_add_string($3), NULL, NULL, NULL, true);
     }
 
 |   PRINTFLN PAREN_LEFT exp_string AND exp_int PAREN_RIGHT {
-        if (check_string($3)) {
-            printf($3, $5);
-            printf("\n");
-        }
+        if (check_string($3)) 
+            node_add_printf(node_add_string($3), node_add_int($5), NULL, NULL, true);
     }
 
 |   PRINTFLN PAREN_LEFT exp_string AND exp_float PAREN_RIGHT {
-        if (check_string($3)) {
-            printf($3, $5);
-            printf("\n");
-        }
+        if (check_string($3))
+            node_add_printf(node_add_string($3), NULL, node_add_float($5), NULL, true);
     }
 
 |   PRINTFLN PAREN_LEFT exp_string AND exp_string PAREN_RIGHT {
-        if (check_string($3)) {
-            printf($3, $5);
-            printf("\n");
-        }
+        if (check_string($3))
+            node_add_printf(node_add_string($3), NULL, NULL, node_add_string($5), true);
     }
 ;
 
@@ -159,6 +192,7 @@ mem_free:
         string_free($3);
     }
 ;
+
     
 exp_int:
     NUMBER_INT {
@@ -185,11 +219,14 @@ exp_int:
         $$ = $1 % $3;
     }
 
+|   PAREN_LEFT exp_int PAREN_RIGHT {
+        $$ = $2;
+    }
+
 |   MEM_READ PAREN_LEFT exp_int AND TYPE_INT PAREN_RIGHT {
         $$ = int_get($3);
     }
 ;
-
 
 exp_float:
     NUMBER_FLOAT {
@@ -210,6 +247,10 @@ exp_float:
 
 |   exp_float DIVIDE exp_float {
         $$ = $1 / $3;
+    }
+
+|   PAREN_LEFT exp_float PAREN_RIGHT {
+        $$ = $2;
     }
 
 |   MEM_READ PAREN_LEFT exp_int AND TYPE_FLOAT PAREN_RIGHT {
@@ -233,13 +274,8 @@ exp_string:
     }
 %%
 
-/*void statement_add(char* value) {
-    if (check_index(curstatement) && always_write) {
-        always_statements[curstatement] = strdup(value);
-        curstatement++;
-    }
-}*/
 
+//Variables
 void int_set(int index, int value) {
     if (check_index(index)) {
         if (int_vars[index] != NULL) {
@@ -319,6 +355,77 @@ void all_free() {
     }
 }
 
+
+//AST (nodes)
+node_string* node_add_string(char* value) {
+    node_string* node_new = malloc(sizeof(node_string));
+    node_new->value = strdup(value);
+    return node_new;
+}
+
+node_int* node_add_int(int value) {
+    node_int* node_new = malloc(sizeof(node_int));
+    //node_new->value = malloc(sizeof(int));
+    node_new->value = value;
+    return node_new;
+}
+
+node_float* node_add_float(float value) {
+    node_float* node_new = malloc(sizeof(node_float));
+    //node_new->value = malloc(sizeof(float));
+    node_new->value = value;
+    return node_new;
+}
+
+
+void node_add_printf(node_string* string, node_int* integer, node_float* floating, node_string* string_second, bool ln) {
+    node_printf node_new;
+    node_new.string = string;
+    node_new.integer = integer;
+    node_new.floating = floating;
+    node_new.string_second = string_second;
+    node_new.ln = ln;
+
+    node_std* temp = realloc(nodes, (nodes_cur + 1) * sizeof(*nodes));
+
+    if (temp == NULL) {
+        yyerror("can't alloc memory");
+        return;
+    }
+
+    nodes = temp;
+    nodes[nodes_cur].printf = node_new;
+    nodes_cur++;
+}
+
+
+void node_to_func() {
+    for (int i = 0; i < nodes_cur; ++i) {
+        //PRINTF/PRINTFLN
+        if (nodes[i].printf.string != NULL) {
+            if (nodes[i].printf.ln == true)
+                printf("\n");
+
+            if (nodes[i].printf.integer != NULL) {
+                printf(nodes[i].printf.string->value, nodes[i].printf.integer->value);
+            }
+
+            else if (nodes[i].printf.floating != NULL) {
+                printf(nodes[i].printf.string->value, nodes[i].printf.floating->value);
+            }
+
+            else if (nodes[i].printf.string_second != NULL) {
+                printf(nodes[i].printf.string->value, nodes[i].printf.string_second->value);
+            }
+
+            else
+                printf(nodes[i].printf.string->value);
+        }
+    }
+}
+
+
+//Checking (small protection)
 bool check_string(const char* string) {
     for (size_t i = 0; i < strlen(string); ++i) {
         if (string[i] == '%') {
@@ -341,6 +448,7 @@ bool check_index(int index) {
     return true;
 }
 
+
 int yyerror(const char* message) {
     fprintf(stderr, "ERROR: %s\n", message);
     return 0;
@@ -357,6 +465,7 @@ int main(int argc, char* argv[]) {
     }
 
     int parse = yyparse();
+    node_to_func();
     all_free();
 
     fclose(yyin);
