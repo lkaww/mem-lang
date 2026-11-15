@@ -69,6 +69,10 @@
     return SCANF;
 }
 
+"reading" {
+    return READING;
+}
+
 "(" {
     return PAREN_LEFT;
 }

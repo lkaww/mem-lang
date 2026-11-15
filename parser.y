@@ -10,16 +10,16 @@
 
     //AST (nodes)
     typedef struct {
-        char* value;
-    } node_string;
-
-    typedef struct {
         int value;
     } node_int;
 
     typedef struct {
         float value;
     } node_float;
+
+    typedef struct {
+        char* value;
+    } node_string;
 
 
     typedef struct {
@@ -28,29 +28,55 @@
         node_float* floating;
         node_string* string_second;
         bool ln;
+        bool read;
     } node_printf;
+
+    typedef struct {
+        node_int* address;
+        node_int* value_int;
+        node_float* value_float;
+        node_string* value_string;
+    } node_memwrite;
+
+    typedef struct {
+        node_int* address;
+        bool value_int;
+        bool value_float;
+        bool value_string;
+    } node_memread;
 
 
     typedef struct {
         node_printf printf;
+        node_memwrite memwrite;
+        node_memread memread;
+        node_memread memfree;
     } node_std;
 
-    node_string* node_add_string(char* value);
+
     node_int* node_add_int(int value);
     node_float* node_add_float(float value);
+    node_string* node_add_string(char* value);
 
-    void node_add_printf(node_string* string, node_int* integer, node_float* floating, node_string* string_second, bool ln);
+    void node_add_printf(node_string* string, node_int* integer, node_float* floating, node_string* string_second, bool ln, bool read);
+    void node_add_memwrite(node_int* address, node_int* value_int, node_float* value_float, node_string* value_string);
+    void node_add_memread(node_int* address, bool value_int, bool value_float, bool value_string, bool free);
 
     void node_to_func();
 
+    void reading_set(node_memread node);
+    void mem_write(node_memwrite node);
+    void mem_free(node_memread node);
+
     node_std* nodes = NULL;
     int nodes_cur = 0;
+    char* reading_value = NULL;
 
     
     //Variables
-    int* int_vars[25] = {NULL};
-    float* float_vars[25] = {NULL};
-    char* string_vars[25] = {NULL};
+    int* int_vars[99] = {NULL};
+    float* float_vars[99] = {NULL};
+    char* string_vars[99] = {NULL};
 
     void int_set(int index, int value);
     int int_get(int index);
@@ -67,7 +93,7 @@
     void all_free();
 
 
-    //Checking (small protection)
+    //Checking
     bool check_string(const char* string);
     bool check_index(int index);
 
@@ -83,6 +109,7 @@
 %token <integer> NUMBER_INT
 %token <floating> NUMBER_FLOAT
 %token <string> STRING
+%token READING
 
 %token MEM_WRITE MEM_READ MEM_FREE
 %token PRINTF PRINTFLN
@@ -116,80 +143,103 @@ statements:
 |   printfln SEMICOLON
 
 |   mem_write SEMICOLON
+|   mem_read SEMICOLON
 |   mem_free SEMICOLON
-
-|   exp_string
 ;
 
 printf:
     PRINTF PAREN_LEFT exp_string PAREN_RIGHT {
         if (check_string($3))
-            node_add_printf(node_add_string($3), NULL, NULL, NULL, false);
+            node_add_printf(node_add_string($3), NULL, NULL, NULL, false, false);
     }
 
 |   PRINTF PAREN_LEFT exp_string AND exp_int PAREN_RIGHT {
         if (check_string($3))
-            node_add_printf(node_add_string($3), node_add_int($5), NULL, NULL, false);
+            node_add_printf(node_add_string($3), node_add_int($5), NULL, NULL, false, false);
     }
 
 |   PRINTF PAREN_LEFT exp_string AND exp_float PAREN_RIGHT {
         if (check_string($3))
-            node_add_printf(node_add_string($3), NULL, node_add_float($5), NULL, false);
+            node_add_printf(node_add_string($3), NULL, node_add_float($5), NULL, false, false);
     }
 
 |   PRINTF PAREN_LEFT exp_string AND exp_string PAREN_RIGHT {
         if (check_string($3))
-            node_add_printf(node_add_string($3), NULL, NULL, node_add_string($5), false);
+            node_add_printf(node_add_string($3), NULL, NULL, node_add_string($5), false, false);
+    }
+
+|   PRINTF PAREN_LEFT exp_string AND READING PAREN_RIGHT {
+        if (check_string($3))
+            node_add_printf(node_add_string($3), NULL, NULL, NULL, false, true);
     }
 ;
 
 printfln:
     PRINTFLN PAREN_LEFT exp_string PAREN_RIGHT {
         if (check_string($3))
-            node_add_printf(node_add_string($3), NULL, NULL, NULL, true);
+            node_add_printf(node_add_string($3), NULL, NULL, NULL, true, false);
     }
 
 |   PRINTFLN PAREN_LEFT exp_string AND exp_int PAREN_RIGHT {
-        if (check_string($3)) 
-            node_add_printf(node_add_string($3), node_add_int($5), NULL, NULL, true);
+        if (check_string($3))
+            node_add_printf(node_add_string($3), node_add_int($5), NULL, NULL, true, false);
     }
 
 |   PRINTFLN PAREN_LEFT exp_string AND exp_float PAREN_RIGHT {
         if (check_string($3))
-            node_add_printf(node_add_string($3), NULL, node_add_float($5), NULL, true);
+            node_add_printf(node_add_string($3), NULL, node_add_float($5), NULL, true, false);
     }
 
 |   PRINTFLN PAREN_LEFT exp_string AND exp_string PAREN_RIGHT {
         if (check_string($3))
-            node_add_printf(node_add_string($3), NULL, NULL, node_add_string($5), true);
+            node_add_printf(node_add_string($3), NULL, NULL, node_add_string($5), true, false);
+    }
+
+|   PRINTFLN PAREN_LEFT exp_string AND READING PAREN_RIGHT {
+        if (check_string($3))
+            node_add_printf(node_add_string($3), NULL, NULL, NULL, true, true);
     }
 ;
 
 mem_write:
     MEM_WRITE PAREN_LEFT exp_int AND exp_int AND TYPE_INT PAREN_RIGHT {
-        int_set($3, $5);
+        node_add_memwrite(node_add_int($3), node_add_int($5), NULL, NULL);
     }
 
 |   MEM_WRITE PAREN_LEFT exp_int AND exp_float AND TYPE_FLOAT PAREN_RIGHT {
-        float_set($3, $5);
+        node_add_memwrite(node_add_int($3), NULL, node_add_float($5), NULL);
     }
 
 |   MEM_WRITE PAREN_LEFT exp_int AND exp_string AND TYPE_STRING PAREN_RIGHT {
-        string_set($3, $5);
+        node_add_memwrite(node_add_int($3), NULL, NULL, node_add_string($5));
+    }
+;
+
+mem_read:
+    MEM_READ PAREN_LEFT exp_int AND TYPE_INT PAREN_RIGHT {
+        node_add_memread(node_add_int($3), true, false, false, false);
+    }
+
+|   MEM_READ PAREN_LEFT exp_int AND TYPE_FLOAT PAREN_RIGHT {
+        node_add_memread(node_add_int($3), false, true, false, false);
+    }
+
+|   MEM_READ PAREN_LEFT exp_int AND TYPE_STRING PAREN_RIGHT {
+        node_add_memread(node_add_int($3), false, false, true, false);
     }
 ;
 
 mem_free:
     MEM_FREE PAREN_LEFT exp_int AND TYPE_INT PAREN_RIGHT {
-        int_free($3);
+        node_add_memread(node_add_int($3), true, false, false, true);
     }
 
 |   MEM_FREE PAREN_LEFT exp_int AND TYPE_FLOAT PAREN_RIGHT {
-        float_free($3);
+        node_add_memread(node_add_int($3), false, true, false, true);
     }
 
 |   MEM_FREE PAREN_LEFT exp_int AND TYPE_STRING PAREN_RIGHT {
-        string_free($3);
+        node_add_memread(node_add_int($3), false, false, true, true);
     }
 ;
 
@@ -222,10 +272,6 @@ exp_int:
 |   PAREN_LEFT exp_int PAREN_RIGHT {
         $$ = $2;
     }
-
-|   MEM_READ PAREN_LEFT exp_int AND TYPE_INT PAREN_RIGHT {
-        $$ = int_get($3);
-    }
 ;
 
 exp_float:
@@ -252,19 +298,11 @@ exp_float:
 |   PAREN_LEFT exp_float PAREN_RIGHT {
         $$ = $2;
     }
-
-|   MEM_READ PAREN_LEFT exp_int AND TYPE_FLOAT PAREN_RIGHT {
-        $$ = float_get($3);
-    }
 ;
 
 exp_string:
     STRING {
         $$ = $1;
-    }
-
-|   MEM_READ PAREN_LEFT exp_int AND TYPE_STRING PAREN_RIGHT {
-        $$ = string_get($3);
     }
 
 |   SCANF PAREN_LEFT exp_string PAREN_RIGHT {
@@ -289,8 +327,11 @@ void int_set(int index, int value) {
 }
 
 int int_get(int index) {
-    if (check_index(index))
+    if (check_index(index) && int_vars[index] != NULL)
         return *int_vars[index];
+
+    yyerror("reading unset memory (NULL)");
+    return 0;
 }
 
 void int_free(int index) {
@@ -313,8 +354,11 @@ void float_set(int index, float value) {
 }
 
 float float_get(int index) {
-    if (check_index(index))
+    if (check_index(index) && float_vars[index] != NULL)
         return *float_vars[index];
+
+    yyerror("reading unset memory (NULL)");
+    return 0.0f;
 }
 
 void float_free(int index) {
@@ -327,7 +371,8 @@ void float_free(int index) {
 void string_set(int index, char* value) {
     if (check_index(index)) {
         if (string_vars[index] != NULL) {
-            string_vars[index] = value;
+            free(string_vars[index]);
+            string_vars[index] = strdup(value);
             return;
         }
 
@@ -336,8 +381,11 @@ void string_set(int index, char* value) {
 }
 
 char* string_get(int index) {
-    if (check_index(index))
+    if (check_index(index) && string_vars[index] != NULL)
         return string_vars[index];
+
+    yyerror("reading unset memory (NULL)");
+    return "";
 }
 
 void string_free(int index) {
@@ -348,43 +396,47 @@ void string_free(int index) {
 }
 
 void all_free() {
-    for (int i = 0; i < 25; ++i) {
+    for (int i = 0; i < 99; ++i) {
         int_free(i);
         float_free(i);
         string_free(i);
     }
+
+    free(nodes);
+    nodes = NULL;
+    nodes_cur = 0;
+    free(reading_value);
 }
 
 
 //AST (nodes)
+node_int* node_add_int(int value) {
+    node_int* node_new = malloc(sizeof(node_int));
+    node_new->value = value;
+    return node_new;
+}
+
 node_string* node_add_string(char* value) {
     node_string* node_new = malloc(sizeof(node_string));
     node_new->value = strdup(value);
     return node_new;
 }
 
-node_int* node_add_int(int value) {
-    node_int* node_new = malloc(sizeof(node_int));
-    //node_new->value = malloc(sizeof(int));
-    node_new->value = value;
-    return node_new;
-}
-
 node_float* node_add_float(float value) {
     node_float* node_new = malloc(sizeof(node_float));
-    //node_new->value = malloc(sizeof(float));
     node_new->value = value;
     return node_new;
 }
 
 
-void node_add_printf(node_string* string, node_int* integer, node_float* floating, node_string* string_second, bool ln) {
+void node_add_printf(node_string* string, node_int* integer, node_float* floating, node_string* string_second, bool ln, bool read) {
     node_printf node_new;
     node_new.string = string;
     node_new.integer = integer;
     node_new.floating = floating;
     node_new.string_second = string_second;
     node_new.ln = ln;
+    node_new.read = read;
 
     node_std* temp = realloc(nodes, (nodes_cur + 1) * sizeof(*nodes));
 
@@ -394,7 +446,54 @@ void node_add_printf(node_string* string, node_int* integer, node_float* floatin
     }
 
     nodes = temp;
+    nodes[nodes_cur] = (node_std){0};
     nodes[nodes_cur].printf = node_new;
+    nodes_cur++;
+}
+
+void node_add_memwrite(node_int* address, node_int* value_int, node_float* value_float, node_string* value_string) {
+    node_memwrite node_new;
+    node_new.address = address;
+    node_new.value_int = value_int;
+    node_new.value_float = value_float;
+    node_new.value_string = value_string;
+
+    node_std* temp = realloc(nodes, (nodes_cur + 1) * sizeof(*nodes));
+
+    if (temp == NULL) {
+        yyerror("can't alloc memory");
+        return;
+    }
+
+    nodes = temp;
+    nodes[nodes_cur] = (node_std){0};
+    nodes[nodes_cur].memwrite = node_new;
+    
+    nodes_cur++;
+}
+
+void node_add_memread(node_int* address, bool value_int, bool value_float, bool value_string, bool free) {
+    node_memread node_new;
+    node_new.address = address;
+    node_new.value_int = value_int;
+    node_new.value_float = value_float;
+    node_new.value_string = value_string;
+
+    node_std* temp = realloc(nodes, (nodes_cur + 1) * sizeof(*nodes));
+
+    if (temp == NULL) {
+        yyerror("can't alloc memory");
+        return;
+    }
+
+    nodes = temp;
+    nodes[nodes_cur] = (node_std){0};
+
+    if (!free)
+        nodes[nodes_cur].memread = node_new;
+    else
+        nodes[nodes_cur].memfree = node_new;
+    
     nodes_cur++;
 }
 
@@ -403,9 +502,6 @@ void node_to_func() {
     for (int i = 0; i < nodes_cur; ++i) {
         //PRINTF/PRINTFLN
         if (nodes[i].printf.string != NULL) {
-            if (nodes[i].printf.ln == true)
-                printf("\n");
-
             if (nodes[i].printf.integer != NULL) {
                 printf(nodes[i].printf.string->value, nodes[i].printf.integer->value);
             }
@@ -418,10 +514,74 @@ void node_to_func() {
                 printf(nodes[i].printf.string->value, nodes[i].printf.string_second->value);
             }
 
+            else if (nodes[i].printf.read == true) {
+                printf(nodes[i].printf.string->value, reading_value);
+            }
+
             else
                 printf(nodes[i].printf.string->value);
+
+            if (nodes[i].printf.ln == true)
+                printf("\n");
+        }
+
+        //MEMWRITE
+        else if (nodes[i].memwrite.address != NULL) {
+            mem_write(nodes[i].memwrite);
+        }
+
+        //MEMREAD
+        else if (nodes[i].memread.address != NULL) {
+            reading_set(nodes[i].memread);
+        }
+
+        //MEMFREE
+        else if (nodes[i].memfree.address != NULL) {
+            mem_free(nodes[i].memfree);
         }
     }
+}
+
+void reading_set(node_memread node) {
+    if (node.value_int == true) {
+        int value = int_get(node.address->value);
+
+        snprintf(reading_value, 99 * sizeof(char), "%d", value);
+    }
+
+    else if (node.value_float == true) {
+        float value = float_get(node.address->value);
+
+        snprintf(reading_value, 99 * sizeof(char), "%g", value);
+    }
+
+    else {
+        char* value = string_get(node.address->value);
+
+        snprintf(reading_value, 99 * sizeof(char), "%s", value);
+    }
+}
+
+void mem_write(node_memwrite node) {
+    if (node.value_int != NULL)
+        int_set(node.address->value, node.value_int->value);
+
+    else if (node.value_float != NULL)
+        float_set(node.address->value, node.value_float->value);
+
+    else
+        string_set(node.address->value, node.value_string->value);
+}
+
+void mem_free(node_memread node) {
+    if (node.value_int == true)
+        int_free(node.address->value);
+
+    else if (node.value_float == true)
+        float_free(node.address->value);
+
+    else
+        string_free(node.address->value);
 }
 
 
@@ -440,7 +600,7 @@ bool check_string(const char* string) {
 }
 
 bool check_index(int index) {
-    if (index < 0 || index > 24) {
+    if (index < 0 || index > 98) {
         yyerror("index out of range");
         return false;
     }
@@ -450,7 +610,7 @@ bool check_index(int index) {
 
 
 int yyerror(const char* message) {
-    fprintf(stderr, "ERROR: %s\n", message);
+    fprintf(stderr, "\nERROR: %s\n", message);
     return 0;
 }
 
@@ -465,6 +625,7 @@ int main(int argc, char* argv[]) {
     }
 
     int parse = yyparse();
+    reading_value = malloc(99 * sizeof(char));
     node_to_func();
     all_free();
 
