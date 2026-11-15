@@ -11,21 +11,25 @@ gcc y.tab.c lex.yy.c -o mem.exe
 
 ## Usage
 ```
-./mem script.txt
+./mem script.mg
 ```
-You can use absolutely any extension instead of .txt.
+You can use absolutely only .mg extension.
 
 ## Example
 
 Script code:
 ```
-mem_write(1, 1, int); //ADDRESS 1, VALUE 1, TYPE INT
-printf("Result: %i", mem_read(1, int)); //PRINTS VALUE ON ADDRESS 1, TYPE INT
+printfln("hello"); //PRINTF WITH NEW LINE
+printfln("there");
+
+printf("Hello, World!"); //PRINTF
 ```
 
 Console:
 ```
-./mem example.txt
+./mem example.mg
 
-Result: 1
+hello
+there
+Hello, World!
 ```

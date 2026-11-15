@@ -96,6 +96,7 @@
     //Checking
     bool check_string(const char* string);
     bool check_index(int index);
+    bool check_ext(const char* filename);
 
     extern FILE* yyin;
 %}
@@ -608,6 +609,11 @@ bool check_index(int index) {
     return true;
 }
 
+bool check_ext(const char* filename) {
+    const char* dot = strrchr(filename, '.');
+    return dot != NULL && strcmp(dot, ".mg") == 0;
+}
+
 
 int yyerror(const char* message) {
     fprintf(stderr, "\nERROR: %s\n", message);
@@ -623,6 +629,9 @@ int main(int argc, char* argv[]) {
         yyerror("usage: ./mem filename");
         return 1;
     }
+
+    if (!check_ext(argv[1]))
+        return 1;
 
     int parse = yyparse();
     reading_value = malloc(99 * sizeof(char));

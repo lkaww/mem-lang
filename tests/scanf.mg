@@ -1,0 +1,1 @@
+printfln("%s", scanf("%99s")); //SCANF (99 SYMBOLS)
