@@ -1,19 +1,19 @@
 # mem-lang
-A small scripting language. Created with Flex and GNU Bison as study project.
+A small interpreting language. Created with Flex and GNU Bison as study project.
 
 ## How to build
-You need to download Flex, GNU Bison and GCC. Then run the following commands:
+You need to download Flex, GNU Bison and C compiler (i have gcc). Then run the following commands:
 ```
 bison -d -o y.tab.c parser.y
 flex lexer.l
-gcc y.tab.c lex.yy.c -o mem.exe
+gcc y.tab.c lex.yy.c
 ```
 
 ## Usage
 ```
-./mem script.mg
+./mem script.mem
 ```
-You can use absolutely only .mg extension.
+You can use only .mem extension.
 
 ## Example
 
@@ -27,7 +27,7 @@ printf("Hello, World!"); //PRINTF
 
 Console:
 ```
-./mem example.mg
+./mem example.mem
 
 hello
 there

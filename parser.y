@@ -307,7 +307,7 @@ exp_string:
     }
 
 |   SCANF PAREN_LEFT exp_string PAREN_RIGHT {
-        char* user_input;
+        char* user_input = malloc(99 * sizeof(char));
         scanf($3, user_input);
         $$ = user_input;
     }
@@ -541,6 +541,8 @@ void node_to_func() {
             mem_free(nodes[i].memfree);
         }
     }
+
+    printf("\n");
 }
 
 void reading_set(node_memread node) {
@@ -611,7 +613,7 @@ bool check_index(int index) {
 
 bool check_ext(const char* filename) {
     const char* dot = strrchr(filename, '.');
-    return dot != NULL && strcmp(dot, ".mg") == 0;
+    return dot != NULL && strcmp(dot, ".mem") == 0;
 }
 
 
