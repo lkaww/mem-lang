@@ -36,6 +36,7 @@
         node_int* value_int;
         node_float* value_float;
         node_string* value_string;
+        bool read;
     } node_memwrite;
 
     typedef struct {
@@ -64,7 +65,7 @@
     node_string* node_add_string(char* value);
 
     void node_add_printf(node_string* string, node_int* integer, node_float* floating, node_string* string_second, bool ln, bool read);
-    void node_add_memwrite(node_int* address, node_int* value_int, node_float* value_float, node_string* value_string);
+    void node_add_memwrite(node_int* address, node_int* value_int, node_float* value_float, node_string* value_string, bool read);
     void node_add_memread(node_int* address, bool value_int, bool value_float, bool value_string, bool free);
     void node_add_scanf(node_string* parametres);
 
@@ -211,15 +212,19 @@ printfln:
 
 mem_write:
     MEM_WRITE PAREN_LEFT exp_int AND exp_int AND TYPE_INT PAREN_RIGHT {
-        node_add_memwrite(node_add_int($3), node_add_int($5), NULL, NULL);
+        node_add_memwrite(node_add_int($3), node_add_int($5), NULL, NULL, false);
     }
 
 |   MEM_WRITE PAREN_LEFT exp_int AND exp_float AND TYPE_FLOAT PAREN_RIGHT {
-        node_add_memwrite(node_add_int($3), NULL, node_add_float($5), NULL);
+        node_add_memwrite(node_add_int($3), NULL, node_add_float($5), NULL, false);
     }
 
 |   MEM_WRITE PAREN_LEFT exp_int AND exp_string AND TYPE_STRING PAREN_RIGHT {
-        node_add_memwrite(node_add_int($3), NULL, NULL, node_add_string($5));
+        node_add_memwrite(node_add_int($3), NULL, NULL, node_add_string($5), false);
+    }
+
+|   MEM_WRITE PAREN_LEFT exp_int AND READING AND TYPE_STRING PAREN_RIGHT {
+        node_add_memwrite(node_add_int($3), NULL, NULL, NULL, true);
     }
 ;
 
@@ -461,12 +466,13 @@ void node_add_printf(node_string* string, node_int* integer, node_float* floatin
     nodes_cur++;
 }
 
-void node_add_memwrite(node_int* address, node_int* value_int, node_float* value_float, node_string* value_string) {
+void node_add_memwrite(node_int* address, node_int* value_int, node_float* value_float, node_string* value_string, bool read) {
     node_memwrite node_new;
     node_new.address = address;
     node_new.value_int = value_int;
     node_new.value_float = value_float;
     node_new.value_string = value_string;
+    node_new.read = read;
 
     node_std* temp = realloc(nodes, (nodes_cur + 1) * sizeof(*nodes));
 
@@ -520,6 +526,8 @@ void node_add_scanf(node_string* parametres) {
 
     nodes = temp;
     nodes[nodes_cur] = (node_std){0};
+    nodes[nodes_cur].scanf = node_new;
+
     nodes_cur++;
 }
 
@@ -563,7 +571,7 @@ void node_to_func() {
 
 		//SCANF	
         else if (nodes[i].scanf.parametres != NULL) {
-            scanf(nodes[i].scanf.parametres->value, &reading_value);
+            scanf(nodes[i].scanf.parametres->value, reading_value);
         }
 
         //MEMFREE
@@ -602,8 +610,11 @@ void mem_write(node_memwrite node) {
     else if (node.value_float != NULL)
         float_set(node.address->value, node.value_float->value);
 
-    else
+    else if (node.value_string != NULL)
         string_set(node.address->value, node.value_string->value);
+
+    else
+        string_set(node.address->value, reading_value);
 }
 
 void mem_free(node_memread node) {
@@ -665,8 +676,9 @@ int main(int argc, char* argv[]) {
     if (!check_ext(argv[1]))
         return 1;
 
-    int parse = yyparse();
     reading_value = malloc(99 * sizeof(char));
+    int parse = yyparse();
+    
     node_to_func();
     all_free();
 
