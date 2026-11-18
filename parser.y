@@ -45,12 +45,17 @@
         bool value_string;
     } node_memread;
 
+    typedef struct {
+        node_string* parametres;
+    } node_scanf;
+
 
     typedef struct {
         node_printf printf;
         node_memwrite memwrite;
         node_memread memread;
         node_memread memfree;
+        node_scanf scanf;
     } node_std;
 
 
@@ -61,6 +66,7 @@
     void node_add_printf(node_string* string, node_int* integer, node_float* floating, node_string* string_second, bool ln, bool read);
     void node_add_memwrite(node_int* address, node_int* value_int, node_float* value_float, node_string* value_string);
     void node_add_memread(node_int* address, bool value_int, bool value_float, bool value_string, bool free);
+    void node_add_scanf(node_string* parametres);
 
     void node_to_func();
 
@@ -146,6 +152,7 @@ statements:
 |   mem_write SEMICOLON
 |   mem_read SEMICOLON
 |   mem_free SEMICOLON
+|	scanf SEMICOLON
 ;
 
 printf:
@@ -244,6 +251,13 @@ mem_free:
     }
 ;
 
+scanf:
+	SCANF PAREN_LEFT exp_string PAREN_RIGHT {
+        if (check_string($3))
+		    node_add_scanf(node_add_string($3));
+	}
+;
+
     
 exp_int:
     NUMBER_INT {
@@ -305,12 +319,7 @@ exp_string:
     STRING {
         $$ = $1;
     }
-
-|   SCANF PAREN_LEFT exp_string PAREN_RIGHT {
-        char* user_input = malloc(99 * sizeof(char));
-        scanf($3, user_input);
-        $$ = user_input;
-    }
+;
 %%
 
 
@@ -498,6 +507,22 @@ void node_add_memread(node_int* address, bool value_int, bool value_float, bool 
     nodes_cur++;
 }
 
+void node_add_scanf(node_string* parametres) {
+    node_scanf node_new;
+    node_new.parametres = parametres;
+
+    node_std* temp = realloc(nodes, (nodes_cur + 1) * sizeof(*nodes));
+
+    if (temp == NULL) {
+        yyerror("can't alloc memory");
+        return;
+    }
+
+    nodes = temp;
+    nodes[nodes_cur] = (node_std){0};
+    nodes_cur++;
+}
+
 
 void node_to_func() {
     for (int i = 0; i < nodes_cur; ++i) {
@@ -534,6 +559,11 @@ void node_to_func() {
         //MEMREAD
         else if (nodes[i].memread.address != NULL) {
             reading_set(nodes[i].memread);
+        }
+
+		//SCANF	
+        else if (nodes[i].scanf.parametres != NULL) {
+            scanf(nodes[i].scanf.parametres->value, &reading_value);
         }
 
         //MEMFREE

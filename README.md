@@ -2,7 +2,7 @@
 A small interpreting language. Created with Flex and GNU Bison as study project.
 
 ## How to build
-You need to download Flex, GNU Bison and C compiler (i have gcc). Then run the following commands:
+You need to download Flex, GNU Bison and C compiler (I have gcc). Then run the following commands:
 ```
 bison -d -o y.tab.c parser.y
 flex lexer.l

@@ -1,0 +1,7 @@
+printfln("This is combinded test of mem-lang (17.26)");
+printfln("Write something:");
+scanf("%99s");
+mem_write(1, reading, string);
+printfln("Writing end");
+mem_read(1, string);
+printfln("And you writed: %s", reading);
